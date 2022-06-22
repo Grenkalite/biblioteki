@@ -1,6 +1,9 @@
 -- https://gist.github.com/thennequin/64b4b996ec990c6ddc13a48c6a0ba68c
 -- ported to Lua by FYP
-local imgui = require 'imgui'
+if not imgui then
+	imgui = require 'imgui'
+end
+--local imgui = require 'imgui'
 local vmajor, vminor, vpatch = string.match(imgui._VERSION, '(%d+)%.(%d+)%.(%d+)')
 assert(tonumber(vmajor) == 1 and (tonumber(vminor) > 1 or (tonumber(vminor) == 1 and tonumber(vpatch) >= 3)),
 	'ImGui Pie requires Moon ImGui v1.1.4 or greater')
