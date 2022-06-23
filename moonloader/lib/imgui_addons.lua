@@ -12,7 +12,19 @@ local wm = require 'lib.windows.message'
 local module = {}
 module._VERSION = "1.0.0"
 module._SETTINGS = {
-    noKeysMessage = "No"
+    HotKey = {
+        noKeysMessage = "No"
+    },
+    ToggleButton = {
+        scale = 1.0,
+        AnimSpeed = 0.13,
+        colors = {
+            imgui.GetStyle().Colors[imgui.Col.ButtonActive], -- Enable circle
+            imgui.ImColor(150, 150, 150, 255):GetVec4(), -- Disable circle
+            imgui.GetStyle().Colors[imgui.Col.FrameBgHovered], -- Enable rect
+            imgui.ImColor(100, 100, 100, 180):GetVec4() -- Disable rect
+        }
+    }
 }
 
 -- Spinner:
@@ -114,7 +126,7 @@ module.HotKey = function(name, keys, lastkeys, width)
             tHotKeyData.lastTick = os.clock()
             tHotKeyData.tickState = not tHotKeyData.tickState
          end
-         sKeys = tHotKeyData.tickState and module._SETTINGS.noKeysMessage or " "
+         sKeys = tHotKeyData.tickState and module._SETTINGS.HotKey.noKeysMessage or " "
         else
             sKeys = table.concat(module.getKeysName(tKeys), " + ")
         end
@@ -123,7 +135,7 @@ module.HotKey = function(name, keys, lastkeys, width)
     imgui.PushStyleColor(imgui.Col.Button, imgui.GetStyle().Colors[imgui.Col.FrameBg])
     imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.GetStyle().Colors[imgui.Col.FrameBgHovered])
     imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.GetStyle().Colors[imgui.Col.FrameBgActive])
-    if imgui.Button((tostring(sKeys):len() == 0 and module._SETTINGS.noKeysMessage or sKeys) .. name, imgui.ImVec2(width, 0)) then
+    if imgui.Button((tostring(sKeys):len() == 0 and module._SETTINGS.HotKey.noKeysMessage or sKeys) .. name, imgui.ImVec2(width, 0)) then
         tHotKeyData.edit = name
     end
     imgui.PopStyleColor(3)
@@ -177,61 +189,6 @@ local function reloadKeysList()
     return true
  end
 
--- Toggle Button:
-module.ToggleButton = function(str_id, bool)
-	local rBool = false
-
-	if LastActiveTime == nil then
-		LastActiveTime = {}
-	end
-	if LastActive == nil then
-		LastActive = {}
-	end
-
-	local function ImSaturate(f)
-		return f < 0.0 and 0.0 or (f > 1.0 and 1.0 or f)
-	end
-	
-	local p = imgui.GetCursorScreenPos()
-	local draw_list = imgui.GetWindowDrawList()
-
-	local height = imgui.GetTextLineHeightWithSpacing()
-	local width = height * 1.55
-	local radius = height * 0.50
-	local ANIM_SPEED = 0.15
-
-	if imgui.InvisibleButton(str_id, imgui.ImVec2(width, height)) then
-		bool.v = not bool.v
-		rBool = true
-		LastActiveTime[tostring(str_id)] = os.clock()
-		LastActive[tostring(str_id)] = true
-	end
-
-	local t = bool.v and 1.0 or 0.0
-
-	if LastActive[tostring(str_id)] then
-		local time = os.clock() - LastActiveTime[tostring(str_id)]
-		if time <= ANIM_SPEED then
-			local t_anim = ImSaturate(time / ANIM_SPEED)
-			t = bool.v and t_anim or 1.0 - t_anim
-		else
-			LastActive[tostring(str_id)] = false
-		end
-	end
-
-	local col_bg
-	if bool.v then
-		col_bg = imgui.GetColorU32(imgui.GetStyle().Colors[imgui.Col.FrameBgHovered])
-	else
-		col_bg = imgui.ImColor(100, 100, 100, 180):GetU32()
-	end
-
-	draw_list:AddRectFilled(imgui.ImVec2(p.x, p.y + (height / 6)), imgui.ImVec2(p.x + width - 1.0, p.y + (height - (height / 6))), col_bg, 5.0)
-	draw_list:AddCircleFilled(imgui.ImVec2(p.x + radius + t * (width - radius * 2.0), p.y + radius), radius - 0.75, imgui.GetColorU32(bool.v and imgui.GetStyle().Colors[imgui.Col.ButtonActive] or imgui.ImColor(150, 150, 150, 255):GetVec4()))
-
-	return rBool
-end
-
 function module.isKeyModified(id)
 if type(id) ~= "number" then
    return false
@@ -283,5 +240,49 @@ addEventHandler("onWindowMessage", function (msg, wparam, lparam)
         end
     end
 end)
+
+-- Toggle Button:
+LastActiveTime = {}
+LastActive = {}
+module.ToggleButton = function(str_id, bool)
+	local rBool = false
+
+	local function ImSaturate(f)
+		return f < 0.0 and 0.0 or (f > 1.0 and 1.0 or f)
+	end
+	
+	local p = imgui.GetCursorScreenPos()
+	local draw_list = imgui.GetWindowDrawList()
+
+	local height = imgui.GetTextLineHeightWithSpacing() * module._SETTINGS.ToggleButton.scale
+	local width = height * 1.2
+	local radius = height * 0.50
+
+	if imgui.InvisibleButton(str_id, imgui.ImVec2(width + radius, height)) then
+		bool.v = not bool.v
+		rBool = true
+		LastActiveTime[tostring(str_id)] = os.clock()
+		LastActive[tostring(str_id)] = true
+	end
+
+	local t = bool.v and 1.0 or 0.0
+
+	if LastActive[tostring(str_id)] then
+		local time = os.clock() - LastActiveTime[tostring(str_id)]
+		if time <= module._SETTINGS.ToggleButton.AnimSpeed then
+			local t_anim = ImSaturate(time / module._SETTINGS.ToggleButton.AnimSpeed)
+			t = bool.v and t_anim or 1.0 - t_anim
+		else
+			LastActive[tostring(str_id)] = false
+		end
+	end
+
+	local col_bg = imgui.GetColorU32(module._SETTINGS.ToggleButton.colors[bool.v and 3 or 4])
+
+	draw_list:AddRectFilled(imgui.ImVec2(p.x + (radius * 0.65), p.y + (height / 6)), imgui.ImVec2(p.x + (radius * 0.65) + width, p.y + (height - (height / 6))), col_bg, 10.0)
+	draw_list:AddCircleFilled(imgui.ImVec2(p.x + (radius * 1.3) + t * (width - (radius * 1.3)), p.y + radius), radius - 1.0, imgui.GetColorU32(module._SETTINGS.ToggleButton.colors[bool.v and  1 or 2]))
+
+	return rBool
+end
 
 return module
